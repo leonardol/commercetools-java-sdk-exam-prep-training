@@ -6,6 +6,8 @@ import com.commercetools.api.models.customer.Customer;
 import io.vrap.rmf.base.client.ApiHttpResponse;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
 
@@ -22,24 +24,77 @@ public class CartService {
             final String cartId) {
 
         return
-                null;
+                apiRoot
+                        .carts()
+                        .withId(cartId)
+                        .get()
+                        .execute();
     }
 
 
     public CompletableFuture<ApiHttpResponse<Cart>> createCart(final ApiHttpResponse<Customer> customerApiHttpResponse) {
 
+        final Customer customer = customerApiHttpResponse.getBody();
+
         return
-                null;
+                apiRoot.carts()
+                        .post(
+                                CartDraftBuilder.of()
+                                        .currency("EUR")
+                                        .customerEmail(customer.getEmail())
+                                        .customerId(customer.getId())
+                                        .shippingAddress(
+                                                customer.getAddresses().stream()
+                                                        .filter(address -> address.getId().equals(customer.getDefaultShippingAddressId()))
+                                                        .findFirst()
+                                                        .orElse(null)
+                                        )
+                                        .country(customer.getAddresses().stream()
+                                                .filter(address -> address.getId().equals(customer.getDefaultShippingAddressId()))
+                                                .findFirst()
+                                                .orElse(null).getCountry()
+                                        )
+                                        .build()
+                        )
+                        .execute();
     }
 
+    public CompletableFuture<ApiHttpResponse<Cart>> createMeCart() {
 
+
+        return
+                apiRoot.carts()
+                        .post(
+                                CartDraftBuilder.of()
+                                        .currency("EUR")
+                                        .country("DE")
+                                        .build()
+                        )
+                        .execute();
+    }
 
     public CompletableFuture<ApiHttpResponse<Cart>> addProductToCartBySkusAndChannel(
             final ApiHttpResponse<Cart> cartApiHttpResponse,
             final String ... skus) {
 
+        final Cart cart = cartApiHttpResponse.getBody();
         return
-                null;
+                apiRoot.carts()
+                        .withId(cart.getId())
+                        .post(
+                                CartUpdateBuilder.of()
+                                        .version(cart.getVersion())
+                                        .actions(
+                                                Stream.of(skus)
+                                                        .map(sku -> CartAddLineItemActionBuilder.of()
+                                                                .sku(sku)
+                                                                .build()
+                                                        )
+                                                        .collect(Collectors.toList())
+                                        )
+                                        .build()
+                        )
+                        .execute();
     }
 
 

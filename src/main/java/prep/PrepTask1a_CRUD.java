@@ -1,12 +1,18 @@
 package prep;
 
 import com.commercetools.api.client.ProjectApiRoot;
-import prep.impl.CustomerService;
-import prep.impl.ApiPrefixHelper;
+import com.commercetools.api.models.common.LocalizedString;
+import com.commercetools.api.models.common.LocalizedStringBuilder;
+import com.commercetools.api.models.tax_category.TaxRateDraft;
+import com.commercetools.api.models.tax_category.TaxRateDraftBuilder;
+import prep.impl.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import static prep.impl.ClientService.createApiClient;
@@ -35,6 +41,60 @@ public class PrepTask1a_CRUD {
         // TODO Step 11: Create a few product categories.
         // TODO Step 12: Query the categories by key.
 
+        String customerGroupName = "B2B Group L2";
+        String customerGroupKey = "b2b-group-l2";
+        String customerEmail = "leonardo1rossi@gcail.com";
+        String customerPassword = "fdhghyg5%hg";
+        String customerKey = "customer-leonardo1";
+        String customerFirstName = "Leonardo";
+        String customerLastName = "Rossi";
+        String customerStreetName = "Am Borsigcurm";
+        String customerStreetNumber = "2";
+        String customerPostalCode = "13507 ";
+        String customerCity = "Berlin";
+        String customerCountry = "DE";
+        String homeCategoryKey = "home";
+        String homeCategoryOrderHint = "0.8";
+        String electronicsCategoryKey = "electronics";
+        String electronicsCategoryOrderHint = "0.9";
+
+        String taxCategoryName = "new standard tax category";
+        String taxCategoryKey = "new-standard-tax-category";
+        List<TaxRateDraft> taxRates = new ArrayList<>();
+        TaxRateDraft taxRateDraft =
+                TaxRateDraftBuilder.of()
+                        .name("Germany Tax")
+                        .country("DE")
+                        .amount(0.17)
+                        .includedInPrice(true)
+                        .build();
+        taxRates.add(taxRateDraft);
+        taxRateDraft =
+                TaxRateDraftBuilder.of()
+                        .name("Italy Tax")
+                        .country("IT")
+                        .amount(0.22)
+                        .includedInPrice(true)
+                        .build();
+        taxRates.add(taxRateDraft);
+
+        final LocalizedString localizedNameForHomeCategory = LocalizedStringBuilder.of()
+                .values(new HashMap<String, String>() {
+                    {
+                        put("de", "Haus");
+                        put("en", "Home");
+                    }
+                })
+                .build();
+
+        final LocalizedString localizedNameForElectronicsCategory = LocalizedStringBuilder.of()
+                .values(new HashMap<String, String>() {
+                    {
+                        put("de", "Elektronik");
+                        put("en", "Electronics");
+                    }
+                })
+                .build();
 
         final ProjectApiRoot apiRoot_poc =
                 createApiClient(
@@ -42,6 +102,9 @@ public class PrepTask1a_CRUD {
                 );
 
         CustomerService customerService = new CustomerService(apiRoot_poc);
+        CustomerGroupService customerGroupService = new CustomerGroupService(apiRoot_poc);
+        TaxCategoryService taxCategoryService = new TaxCategoryService(apiRoot_poc);
+        CategoryService categoryService = new CategoryService(apiRoot_poc);
 
         logger.info("TODO List: Create a new customer.\n" +
                 "Update the customer's billing address.\n" +
@@ -52,8 +115,87 @@ public class PrepTask1a_CRUD {
                 "Create a few product categories.\n" +
                 "Query the categories by key.\n");
 
-//        logger.info("Create sign up completed."  +
-//                customerService.createCustomer("","","","","",""));
+        logger.info("Create sign up completed." +
+                customerService.createCustomer(
+                                customerEmail,
+                                customerPassword,
+                                customerKey,
+                                customerFirstName,
+                                customerLastName,
+                                customerCountry
+                        )
+                        .get().getBody().getCustomer().getKey()
+        );
+
+        logger.info("Customer billing address updated: " +
+            customerService.updateCustomerBillingAddress(
+                            customerService.getCustomerByKey(customerKey).get(),
+                            customerStreetName,
+                            customerStreetNumber,
+                            customerPostalCode,
+                            customerCity,
+                            customerCountry).get().getBody().getKey()
+        );
+
+        logger.info("Customer group created: " +
+                customerGroupService.createCustomerGroup(
+                                customerGroupName,
+                                customerGroupKey
+                        )
+                        .get()
+                        .getBody().getName()
+        );
+
+        logger.info("Updated customer: " +
+            customerService.assignCustomerToCustomerGroup(
+                            customerService.getCustomerByKey(customerKey).get(),
+                            customerGroupService.getCustomerGroupByKey(customerGroupKey).get())
+                    .get().getBody().getKey()
+        );
+
+        logger.info("Deleted customer: " +
+                customerService
+                        .deleteCustomer(
+                                customerService.getCustomerByKey(customerKey).get())
+                        .get().getBody().getKey()
+        );
+
+        logger.info("Tax category created: " +
+            taxCategoryService.createTaxCategory(
+                    taxCategoryName,
+                    taxCategoryKey,
+                    taxRates)
+                    .get().getBody().getName()
+        );
+
+        logger.info("Category created: " +
+                categoryService.createCategory(
+                                localizedNameForHomeCategory,
+                                homeCategoryKey,
+                                homeCategoryOrderHint)
+                        .get().getBody().getName()
+        );
+
+        logger.info("Category created: " +
+                categoryService.createCategory(
+                                localizedNameForElectronicsCategory,
+                                electronicsCategoryKey,
+                                electronicsCategoryOrderHint)
+                        .get().getBody().getName()
+        );
+
+        logger.info("Home category: " +
+                categoryService.getCategoryByKey(
+                                homeCategoryKey)
+                        .get().getBody().getKey()
+        );
+
+        logger.info("Electronics category: " +
+                categoryService.getCategoryByKey(
+                                electronicsCategoryKey)
+                        .get().getBody().getKey()
+        );
+
 
         apiRoot_poc.close();
     }
